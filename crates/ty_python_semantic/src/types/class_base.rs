@@ -231,6 +231,7 @@ impl<'db> ClassBase<'db> {
                 | SpecialFormType::Optional
                 | SpecialFormType::Not
                 | SpecialFormType::Top
+                | SpecialFormType::TypedDictTop
                 | SpecialFormType::Bottom
                 | SpecialFormType::Intersection
                 | SpecialFormType::TypeOf
