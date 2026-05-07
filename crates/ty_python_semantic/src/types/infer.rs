@@ -46,6 +46,7 @@
 use std::collections::hash_map::Entry;
 
 use ruff_db::parsed::parsed_module;
+use ruff_python_ast as ast;
 use ruff_text_size::Ranged;
 use rustc_hash::{FxHashMap, FxHashSet};
 use salsa;
@@ -63,7 +64,7 @@ use crate::{Db, FxIndexSet};
 
 use builder::TypeInferenceBuilder;
 pub(super) use comparisons::UnsupportedComparisonError;
-use ty_python_core::definition::Definition;
+use ty_python_core::definition::{Definition, DefinitionKind};
 use ty_python_core::expression::Expression;
 use ty_python_core::scope::ScopeId;
 use ty_python_core::statement::StatementInner;
@@ -120,7 +121,32 @@ fn definition_cycle_initial<'db>(
     id: salsa::Id,
     definition: Definition<'db>,
 ) -> DefinitionInference<'db> {
-    DefinitionInference::cycle_initial(definition.scope(db), Type::divergent(id))
+    let cycle_recovery = Type::divergent(id);
+    let mut inference = DefinitionInference::cycle_initial(definition.scope(db), cycle_recovery);
+
+    // Eagerly store more precise types for collection literals to avoid an extra
+    // cycle iteration, i.e., by inferring `list[Divergent]` instead of `Divergent`.
+    let module = parsed_module(db, definition.file(db)).load(db);
+    if let DefinitionKind::Assignment(assignment) = definition.kind(db) {
+        let divergent_collection = match assignment.value(&module) {
+            ast::Expr::Set(_) => {
+                Some(KnownClass::Set.to_specialized_instance(db, &[cycle_recovery]))
+            }
+            ast::Expr::List(_) => {
+                Some(KnownClass::List.to_specialized_instance(db, &[cycle_recovery]))
+            }
+            ast::Expr::Dict(_) => Some(
+                KnownClass::Dict.to_specialized_instance(db, &[cycle_recovery, cycle_recovery]),
+            ),
+            _ => None,
+        };
+
+        if let Some(divergent_collection) = divergent_collection {
+            inference.bindings = Box::new([(definition, divergent_collection)]);
+        }
+    }
+
+    inference
 }
 
 /// Infer decorator expression types for a function definition.
