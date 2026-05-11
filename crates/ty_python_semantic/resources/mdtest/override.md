@@ -263,6 +263,14 @@ class ProtocolImplementation(ProtocolInterface):
     def method(self) -> int:
         return 1
 
+class ConcreteMixin:
+    def method(self) -> int:
+        return 1
+
+class ProtocolBeforeConcrete(ProtocolInterface, ConcreteMixin):
+    def method(self) -> int:  # error: [missing-override-decorator]
+        return 2
+
 # A protocol member with a concrete default is user-authored behavior, so overriding it does require
 # `@override`.
 class ProtocolWithDefault(Protocol):
@@ -281,6 +289,10 @@ class AbstractInterface(ABC):
 class AbstractImplementation(AbstractInterface):
     def method(self) -> int:
         return 1
+
+class AbstractBeforeConcrete(AbstractInterface, ConcreteMixin):
+    def method(self) -> int:  # error: [missing-override-decorator]
+        return 2
 
 # Abstract methods with default bodies are still interface targets.
 class AbstractInterfaceWithDefault(ABC):
