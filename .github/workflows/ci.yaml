@@ -414,10 +414,14 @@ jobs:
           enable-cache: "true"
       - name: "Run tests"
         run: |
-          # setup-uv can prepend ~/.local/bin on macOS, ahead of Rustup's cargo shim.
-          export PATH="$HOME/.cargo/bin:$PATH"
-          cargo nextest run --all-features --profile ci
-          cargo test --all-features --doc
+          # The macOS runner image can leave Cargo's shim pointing at rustup-init.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            cargo_bin="$(rustup which cargo)"
+          else
+            cargo_bin="cargo"
+          fi
+          "$cargo_bin" nextest run --all-features --profile ci
+          "$cargo_bin" test --all-features --doc
 
   cargo-test-wasm:
     name: "cargo test (wasm)"
