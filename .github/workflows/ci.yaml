@@ -414,6 +414,8 @@ jobs:
           enable-cache: "true"
       - name: "Run tests"
         run: |
+          # setup-uv can prepend ~/.local/bin on macOS, ahead of Rustup's cargo shim.
+          export PATH="$HOME/.cargo/bin:$PATH"
           cargo nextest run --all-features --profile ci
           cargo test --all-features --doc
 
